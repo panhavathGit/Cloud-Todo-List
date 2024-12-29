@@ -1,3 +1,23 @@
+# services:
+#   app:
+#     image: node:18-alpine
+#     command: sh -c "yarn install && yarn run dev"
+#     ports:
+#       - 127.0.0.1:3000:3000
+#     working_dir: /app
+#     volumes:
+#       - ./:/app
+#     environment:
+#       MYSQL_HOST: ${DB_HOST}
+#       MYSQL_USER: ${DB_USER}
+#       MYSQL_PASSWORD: ${DB_PASSWORD}
+#       MYSQL_DB: ${DB_NAME}
+#     env_file:
+#       - .env
+
+# volumes:
+#   todo-mysql-data:
+
 services:
   app:
     image: node:18-alpine
@@ -8,18 +28,25 @@ services:
     volumes:
       - ./:/app
     environment:
-      MYSQL_HOST: mysql
-      MYSQL_USER: root
-      MYSQL_PASSWORD: secret
-      MYSQL_DB: todos
+      MYSQL_HOST: ${DB_HOST}
+      MYSQL_USER: ${DB_USER}
+      MYSQL_PASSWORD: ${DB_PASSWORD}
+      MYSQL_DB: ${DB_NAME}
+
+    env_file:
+      - .env
 
   mysql:
     image: mysql:8.0
     volumes:
       - todo-mysql-data:/var/lib/mysql
     environment:
-      MYSQL_ROOT_PASSWORD: secret
-      MYSQL_DATABASE: todos
+      MYSQL_DATABASE: ${DB_NAME}
+      MYSQL_USER: ${DB_USER}
+      MYSQL_PASSWORD: ${DB_PASSWORD}
+    ports:
+      - "3306:3306"
 
 volumes:
   todo-mysql-data:
+

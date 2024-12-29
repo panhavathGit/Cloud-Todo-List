@@ -1,4 +1,4 @@
-const db = require('../persistence');
+const db = require('../persistence/sqlite.js');
 
 module.exports = async (req, res) => {
     await db.updateItem(req.params.id, {

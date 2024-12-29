@@ -1,28 +1,27 @@
+require('dotenv').config();
 const waitPort = require('wait-port');
 const fs = require('fs');
 const mysql = require('mysql2');
 
 const {
-    MYSQL_HOST: HOST,
-    MYSQL_HOST_FILE: HOST_FILE,
-    MYSQL_USER: USER,
-    MYSQL_USER_FILE: USER_FILE,
-    MYSQL_PASSWORD: PASSWORD,
-    MYSQL_PASSWORD_FILE: PASSWORD_FILE,
-    MYSQL_DB: DB,
-    MYSQL_DB_FILE: DB_FILE,
+    DB_HOST,
+    DB_USER,
+    DB_PASSWORD,
+    DB_NAME,
 } = process.env;
+
+if (!DB_HOST || !DB_USER || !DB_PASSWORD || !DB_NAME) {
+    console.error('Missing required database environment variables');
+    process.exit(1);
+}
 
 let pool;
 
 async function init() {
-    const host = HOST_FILE ? fs.readFileSync(HOST_FILE) : HOST;
-    const user = USER_FILE ? fs.readFileSync(USER_FILE) : USER;
-    const password = PASSWORD_FILE ? fs.readFileSync(PASSWORD_FILE) : PASSWORD;
-    const database = DB_FILE ? fs.readFileSync(DB_FILE) : DB;
 
+    console.log(`Attempting to connect to MySQL at host: ${DB_HOST}`);
     await waitPort({ 
-        host, 
+        host: DB_HOST, 
         port: 3306,
         timeout: 10000,
         waitForDns: true,
@@ -30,10 +29,10 @@ async function init() {
 
     pool = mysql.createPool({
         connectionLimit: 5,
-        host,
-        user,
-        password,
-        database,
+        host: DB_HOST,
+        user: DB_USER,
+        password: DB_PASSWORD,
+        database: DB_NAME,
         charset: 'utf8mb4',
     });
 
@@ -43,7 +42,7 @@ async function init() {
             err => {
                 if (err) return rej(err);
 
-                console.log(`Connected to mysql db at host ${HOST}`);
+                console.log(`Connected to mysql db at host ${DB_HOST}`);
                 acc();
             },
         );
