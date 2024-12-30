@@ -1,0 +1,74 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-east-1
+        
+      - name: Deploy to EC2
+        uses: appleboy/ssh-action@master
+        env:
+          MYSQL_HOST: ${{ secrets.MYSQL_HOST }}
+          MYSQL_USER: ${{ secrets.MYSQL_USER }}
+          MYSQL_PASSWORD: ${{ secrets.MYSQL_PASSWORD }}
+          MYSQL_DATABASE: ${{ secrets.MYSQL_DATABASE }}
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ec2-user
+          key: ${{ secrets.EC2_SSH_KEY }}
+          envs: MYSQL_HOST,MYSQL_USER,MYSQL_PASSWORD,MYSQL_DATABASE
+          script: |
+            # Check if the container 'todo-app-app-1' is running
+            if sudo docker ps -q -f name=todo-app-app-1; then
+              echo "Container 'todo-app-app-1' is running. Bringing it down..."
+              
+              # Stop and remove the container using docker-compose
+              sudo docker-compose down
+              
+              # Stop and remove the specific container if it wasn't removed by docker-compose
+              sudo docker stop todo-app-app-1 || true
+              sudo docker rm todo-app-app-1 || true
+            fi
+
+            # Remove old image if it exists
+            sudo docker rmi todo-app:latest || true
+            
+            # Clone the latest code
+            cd /home/ec2-user
+            sudo rm -rf todo-app
+            git clone https://github.com/panhavathGit/Cloud-Todo-List
+            cd todo-app
+
+            # Build new image with the same name
+            sudo docker build -t todo-app .
+
+            # Run new container with same port mappings
+            sudo docker run -d \
+              --name todo-app-app-1 \
+              -p 3000:3000 \
+              -e MYSQL_HOST="${MYSQL_HOST}" \
+              -e MYSQL_USER="${MYSQL_USER}" \
+              -e MYSQL_PASSWORD="${MYSQL_PASSWORD}" \
+              -e MYSQL_DATABASE="${MYSQL_DATABASE}" \
+              todo-app:latest
+
+            # Deploy the docker-compose service
+            sudo docker-compose up --build -d
+
+            # Verify deployment
+            sudo docker ps -a | grep todo-app-app-1 || echo "Deployment failed"
